@@ -360,6 +360,9 @@ struct tcpm_port {
 	unsigned long delay_ms;
 
 	spinlock_t pd_event_lock;
+#ifdef CONFIG_NO_GKI
+	struct mutex pd_handler_lock;
+#endif
 	u32 pd_events;
 
 	struct kthread_work event_work;
@@ -1463,9 +1466,18 @@ static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 static void tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
 				    const u32 *data, int cnt)
 {
+#ifdef CONFIG_NO_GKI
+	mutex_lock(&port->pd_handler_lock);
+	if (tcpm_port_is_disconnected(port))
+		goto unlock;
+#endif
 	mutex_lock(&port->lock);
 	tcpm_queue_vdm(port, header, data, cnt);
 	mutex_unlock(&port->lock);
+#ifdef CONFIG_NO_GKI
+unlock:
+	mutex_unlock(&port->pd_handler_lock);
+#endif
 }
 
 static void svdm_consume_identity(struct tcpm_port *port, const u32 *p, int cnt)
@@ -1514,7 +1526,21 @@ static bool svdm_consume_svids(struct tcpm_port *port, const u32 *p, int cnt)
 		pmdata->svids[pmdata->nsvids++] = svid;
 		tcpm_log(port, "SVID %d: 0x%x", pmdata->nsvids, svid);
 	}
-	return true;
+
+	/*
+	 * PD3.0 Spec 6.4.4.3.2: The SVIDs are returned 2 per VDO (see Table
+	 * 6-43), and can be returned maximum 6 VDOs per response (see Figure
+	 * 6-19). If the Respondersupports 12 or more SVID then the Discover
+	 * SVIDs Command Shall be executed multiple times until a Discover
+	 * SVIDs VDO is returned ending either with a SVID value of 0x0000 in
+	 * the last part of the last VDO or with a VDO containing two SVIDs
+	 * with values of 0x0000.
+	 *
+	 * However, some odd dockers support SVIDs less than 12 but without
+	 * 0x0000 in the last VDO, so we need to break the Discover SVIDs
+	 * request and return false here.
+	 */
+	return cnt == 7 ? true : false;
 abort:
 	tcpm_log(port, "SVID_DISCOVERY_MAX(%d) too low!", SVID_DISCOVERY_MAX);
 	return false;
@@ -2918,15 +2944,18 @@ static void tcpm_pd_rx_handler(struct kthread_work *work)
 		    (port->data_role == TYPEC_HOST)) {
 			tcpm_log(port,
 				 "Data role mismatch, initiating error recovery");
-			tcpm_set_state(port, ERROR_RECOVERY, 0);
-		} else {
+				port->data_role = (port->data_role == TYPEC_DEVICE) ? TYPEC_HOST : TYPEC_DEVICE;
+				tcpm_set_attached_state(port, true);
+		}
+//			tcpm_set_state(port, ERROR_RECOVERY, 0);
+//		} else {
 			if (le16_to_cpu(msg->header) & PD_HEADER_EXT_HDR)
 				tcpm_pd_ext_msg_request(port, msg);
 			else if (cnt)
 				tcpm_pd_data_request(port, msg);
 			else
 				tcpm_pd_ctrl_request(port, msg);
-		}
+//		}
 	}
 
 done:
@@ -4157,12 +4186,9 @@ static void run_state_machine(struct tcpm_port *port)
 				       0);
 			port->debouncing = false;
 		} else {
-			/* Wait for VBUS, but not forever */
-			tcpm_set_state(port, PORT_RESET, PD_T_PS_SOURCE_ON);
 			port->debouncing = false;
 		}
 		break;
-
 	case SRC_TRY:
 		port->try_src_count++;
 		tcpm_set_cc(port, tcpm_rp_cc(port));
@@ -4414,7 +4440,7 @@ static void run_state_machine(struct tcpm_port *port)
 		 * For now, this driver only supports SOP for DISCOVER_IDENTITY, thus using
 		 * port->explicit_contract.
 		 */
-		if (port->explicit_contract)
+		if (port->explicit_contract && port->data_role == TYPEC_HOST)
 			mod_send_discover_delayed_work(port, 0);
 		else
 			port->send_discover = false;
@@ -4846,7 +4872,7 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case PORT_RESET:
 		tcpm_reset_port(port);
-		tcpm_set_cc(port, TYPEC_CC_OPEN);
+		tcpm_set_cc(port, TYPEC_CC_RD);
 		tcpm_set_state(port, PORT_RESET_WAIT_OFF,
 			       PD_T_ERROR_RECOVERY);
 		break;
@@ -4960,6 +4986,7 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 			tcpm_set_state(port, SRC_ATTACH_WAIT, 0);
 		break;
 	case SRC_ATTACHED:
+	case SRC_STARTUP:
 	case SRC_SEND_CAPABILITIES:
 	case SRC_READY:
 		if (tcpm_port_is_disconnected(port) ||
@@ -5242,8 +5269,9 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 	case SNK_TRYWAIT_DEBOUNCE:
 		break;
 	case SNK_ATTACH_WAIT:
+	case SNK_DEBOUNCED:
 		port->debouncing = false;
-		tcpm_set_state(port, SNK_UNATTACHED, 0);
+		/* Do nothing, as TCPM is still waiting for vbus to reaach VSAFE5V to connect */
 		break;
 
 	case SNK_NEGOTIATE_CAPABILITIES:
@@ -5388,6 +5416,9 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 					      event_work);
 	u32 events;
 
+#ifdef CONFIG_NO_GKI
+	mutex_lock(&port->pd_handler_lock);
+#endif
 	mutex_lock(&port->lock);
 
 	spin_lock(&port->pd_event_lock);
@@ -5450,6 +5481,9 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 	}
 	spin_unlock(&port->pd_event_lock);
 	mutex_unlock(&port->lock);
+#ifdef CONFIG_NO_GKI
+	mutex_unlock(&port->pd_handler_lock);
+#endif
 }
 
 void tcpm_cc_change(struct tcpm_port *port)
@@ -5933,7 +5967,7 @@ static void tcpm_init(struct tcpm_port *port)
 	 * Should possibly wait for VBUS to settle if it was enabled locally
 	 * since tcpm_reset_port() will disable VBUS.
 	 */
-	port->vbus_present = port->tcpc->get_vbus(port->tcpc);
+	port->vbus_present = true;
 	if (port->vbus_present)
 		port->vbus_never_low = true;
 
@@ -5964,7 +5998,7 @@ static void tcpm_init(struct tcpm_port *port)
 	 * Some adapters need a clean slate at startup, and won't recover
 	 * otherwise. So do not try to be fancy and force a clean disconnect.
 	 */
-	tcpm_set_state(port, PORT_RESET, 0);
+	//tcpm_set_state(port, PORT_RESET, 0);
 }
 
 static int tcpm_port_type_set(struct typec_port *p, enum typec_port_type type)
@@ -6262,6 +6296,27 @@ static int tcpm_psy_get_current_now(struct tcpm_port *port,
 	return 0;
 }
 
+static int tcpm_psy_get_input_power_limit(struct tcpm_port *port,
+					  union power_supply_propval *val)
+{
+	unsigned int src_mv, src_ma, max_src_mw = 0;
+	unsigned int i, tmp;
+
+	for (i = 0; i < port->nr_source_caps; i++) {
+		u32 pdo = port->source_caps[i];
+
+		if (pdo_type(pdo) == PDO_TYPE_FIXED) {
+			src_mv = pdo_fixed_voltage(pdo);
+			src_ma = pdo_max_current(pdo);
+			tmp = src_mv * src_ma / 1000;
+			max_src_mw = tmp > max_src_mw ? tmp : max_src_mw;
+		}
+	}
+
+	val->intval = max_src_mw;
+	return 0;
+}
+
 static int tcpm_psy_get_prop(struct power_supply *psy,
 			     enum power_supply_property psp,
 			     union power_supply_propval *val)
@@ -6290,6 +6345,9 @@ static int tcpm_psy_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = tcpm_psy_get_current_now(port, val);
+		break;
+	case POWER_SUPPLY_PROP_INPUT_POWER_LIMIT:
+		tcpm_psy_get_input_power_limit(port, val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -6457,6 +6515,9 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 
 	mutex_init(&port->lock);
 	mutex_init(&port->swap_lock);
+#ifdef CONFIG_NO_GKI
+	mutex_init(&port->pd_handler_lock);
+#endif
 
 	port->wq = kthread_create_worker(0, dev_name(dev));
 	if (IS_ERR(port->wq))

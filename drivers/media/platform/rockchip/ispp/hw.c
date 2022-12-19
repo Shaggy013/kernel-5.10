@@ -14,7 +14,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-cma-sg.h>
 #include <media/videobuf2-dma-sg.h>
 #include <soc/rockchip/rockchip_iommu.h>
 
@@ -392,9 +392,12 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&hw_dev->list);
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
+	/* for frame end reset and config reg */
+	if (hw_dev->ispp_ver == ISPP_V10)
+		hw_dev->is_single = false;
 	hw_dev->is_fec_ext = false;
 	hw_dev->is_dma_contig = true;
-	hw_dev->is_dma_sg_ops = false;
+	hw_dev->is_dma_sg_ops = true;
 	hw_dev->is_shutdown = false;
 	hw_dev->is_first = true;
 	hw_dev->is_mmu = is_iommu_enable(dev);
@@ -403,19 +406,10 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 		is_mem_reserved = false;
 		if (!hw_dev->is_mmu)
 			dev_info(dev, "No reserved memory region. default cma area!\n");
-		else
-			hw_dev->is_dma_contig = false;
 	}
-	if (is_mem_reserved) {
-		/* reserved memory using rdma_sg */
-		hw_dev->mem_ops = &vb2_rdma_sg_memops;
-		hw_dev->is_dma_sg_ops = true;
-	} else if (hw_dev->is_mmu) {
-		hw_dev->mem_ops = &vb2_dma_sg_memops;
-		hw_dev->is_dma_sg_ops = true;
-	} else {
-		hw_dev->mem_ops = &vb2_dma_contig_memops;
-	}
+	if (hw_dev->is_mmu && !is_mem_reserved)
+		hw_dev->is_dma_contig = false;
+	hw_dev->mem_ops = &vb2_cma_sg_memops;
 
 	rkispp_register_fec(hw_dev);
 	pm_runtime_enable(&pdev->dev);

@@ -54,6 +54,7 @@ struct rk_i2s_dev {
 	const struct rk_i2s_pins *pins;
 	unsigned int bclk_ratio;
 	spinlock_t lock; /* tx/rx lock */
+	unsigned int clk_trcm;
 };
 
 static int i2s_runtime_suspend(struct device *dev)
@@ -304,7 +305,6 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct rk_i2s_dev *i2s = to_info(dai);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	unsigned int val = 0;
 	unsigned int mclk_rate, bclk_rate, div_bclk, div_lrck;
 
@@ -404,13 +404,6 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(i2s->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
 			   I2S_DMACR_RDL(16));
 
-	val = I2S_CKR_TRCM_TXRX;
-	if (dai->driver->symmetric_rates && rtd->dai_link->symmetric_rates)
-		val = I2S_CKR_TRCM_TXONLY;
-
-	regmap_update_bits(i2s->regmap, I2S_CKR,
-			   I2S_CKR_TRCM_MASK,
-			   val);
 	return 0;
 }
 
@@ -493,7 +486,6 @@ static const struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 static struct snd_soc_dai_driver rockchip_i2s_dai = {
 	.probe = rockchip_i2s_dai_probe,
 	.ops = &rockchip_i2s_dai_ops,
-	.symmetric_rates = 1,
 };
 
 static const struct snd_soc_component_driver rockchip_i2s_component = {
@@ -589,20 +581,46 @@ static const struct rk_i2s_pins rk3399_i2s_pins = {
 };
 
 static const struct of_device_id rockchip_i2s_match[] __maybe_unused = {
+#ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{ .compatible = "rockchip,rk1808-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3036
 	{ .compatible = "rockchip,rk3036-i2s", },
+#endif
 	{ .compatible = "rockchip,rk3066-i2s", },
+#ifdef CONFIG_CPU_RK312X
 	{ .compatible = "rockchip,rk3128-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3188
 	{ .compatible = "rockchip,rk3188-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK322X
 	{ .compatible = "rockchip,rk3228-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{ .compatible = "rockchip,rk3288-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3308
 	{ .compatible = "rockchip,rk3308-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{ .compatible = "rockchip,rk3328-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3366
 	{ .compatible = "rockchip,rk3366-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{ .compatible = "rockchip,rk3368-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{ .compatible = "rockchip,rk3399-i2s", .data = &rk3399_i2s_pins },
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-i2s", },
+#endif
 	{},
 };
 
@@ -668,6 +686,18 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 				dai->capture.channels_max = val;
 		}
 	}
+
+	i2s->clk_trcm = I2S_CKR_TRCM_TXRX;
+	if (!of_property_read_u32(node, "rockchip,clk-trcm", &val)) {
+		if (val >= 0 && val <= 2) {
+			i2s->clk_trcm = val << I2S_CKR_TRCM_SHIFT;
+			if (i2s->clk_trcm)
+				dai->symmetric_rates = 1;
+		}
+	}
+
+	regmap_update_bits(i2s->regmap, I2S_CKR,
+			   I2S_CKR_TRCM_MASK, i2s->clk_trcm);
 
 	if (dp)
 		*dp = dai;
@@ -754,6 +784,9 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Could not register DAI\n");
 		goto err_suspend;
 	}
+
+	if (of_property_read_bool(node, "rockchip,no-dmaengine"))
+		return 0;
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {

@@ -1643,17 +1643,33 @@ static inline void config_mi_ctrl(struct rkisp_stream *stream, u32 burst)
 	writel(reg | CIF_MI_CTRL_INIT_OFFSET_EN, addr);
 }
 
-static inline bool mp_is_stream_stopped(void __iomem *base)
+static inline bool mp_is_stream_stopped(struct rkisp_stream *stream)
 {
-	int en;
+	u32 en = CIF_MI_CTRL_SHD_MP_OUT_ENABLED | CIF_MI_CTRL_SHD_RAW_OUT_ENABLED;
+	u32 reg = CIF_MI_CTRL_SHD;
+	bool is_direct = true;
 
-	en = CIF_MI_CTRL_SHD_MP_IN_ENABLED | CIF_MI_CTRL_SHD_RAW_OUT_ENABLED;
-	return !(readl(base + CIF_MI_CTRL_SHD) & en);
+	if (!stream->ispdev->hw_dev->is_single) {
+		is_direct = false;
+		reg = CIF_MI_CTRL;
+		en = CIF_MI_CTRL_MP_ENABLE | CIF_MI_CTRL_RAW_ENABLE;
+	}
+
+	return !(rkisp_read(stream->ispdev, reg, is_direct) & en);
 }
 
-static inline bool sp_is_stream_stopped(void __iomem *base)
+static inline bool sp_is_stream_stopped(struct rkisp_stream *stream)
 {
-	return !(readl(base + CIF_MI_CTRL_SHD) & CIF_MI_CTRL_SHD_SP_IN_ENABLED);
+	u32 reg = CIF_MI_CTRL_SHD, en = CIF_MI_CTRL_SHD_SP_OUT_ENABLED;
+	bool is_direct = true;
+
+	if (!stream->ispdev->hw_dev->is_single) {
+		is_direct = false;
+		reg = CIF_MI_CTRL;
+		en = CIF_MI_CTRL_SP_ENABLE;
+	}
+
+	return !(rkisp_read(stream->ispdev, reg, is_direct) & en);
 }
 
 static inline void isp_set_bits(void __iomem *addr, u32 bit_mask, u32 val)
@@ -1899,6 +1915,10 @@ static inline void force_cfg_update(struct rkisp_device *dev)
 	u32 val = CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN;
 	bool is_unite = dev->hw_dev->is_unite;
 
+	if (dev->isp_ver == ISP_V21) {
+		val |= rkisp_read_reg_cache(dev, CIF_MI_CTRL);
+		rkisp_write(dev, CIF_MI_CTRL, val, true);
+	}
 	dev->hw_dev->is_mi_update = true;
 	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, false, is_unite);
 	val = CIF_MI_INIT_SOFT_UPD;

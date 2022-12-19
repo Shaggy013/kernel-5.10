@@ -27,6 +27,8 @@
  * 1. fix set_fmt & ioctl get mode unmatched issue.
  * 2. need to set default vblank when change format.
  * 3. enum all supported mode mbus_code, not just cur_mode.
+ * V0.0X01.0X08
+ * 1. add dcphy param for hdrx2 mode.
  */
 
 #define DEBUG
@@ -50,7 +52,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -230,6 +232,17 @@ struct imx415 {
 	u32			cur_vts;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+};
+
+static struct rkmodule_csi_dphy_param dcphy_param = {
+	.vendor = PHY_VENDOR_SAMSUNG,
+	.lp_vol_ref = 6,
+	.lp_hys_sw = {3, 0, 0, 0},
+	.lp_escclk_pol_sel = {1, 1, 1, 1},
+	.skew_data_cal_clk = {0, 3, 3, 3},
+	.clk_hs_term_sel = 2,
+	.data_hs_term_sel = {2, 2, 2, 2},
+	.reserved = {0},
 };
 
 #define to_imx415(sd) container_of(sd, struct imx415, subdev)
@@ -1675,6 +1688,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	long ret = 0;
 	const struct imx415_mode *mode;
 	u64 pixel_rate = 0;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1723,6 +1737,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			}
 			w = mode->hts_def - imx415->cur_mode->width;
 			h = mode->vts_def - mode->height;
+			mutex_lock(&imx415->mutex);
 			__v4l2_ctrl_modify_range(imx415->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(imx415->vblank, h,
 				IMX415_VTS_MAX - mode->height,
@@ -1731,6 +1746,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
 			__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 						 pixel_rate);
+			mutex_unlock(&imx415->mutex);
 		}
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
@@ -1754,6 +1770,16 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ch_info = (struct rkmodule_channel_info *)arg;
 		ret = imx415_get_channel_info(imx415, ch_info);
 		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		if (imx415->cur_mode->hdr_mode == HDR_X2) {
+			dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+			if (dphy_param->vendor == dcphy_param.vendor)
+				*dphy_param = dcphy_param;
+			dev_info(&imx415->client->dev,
+				 "get sensor dphy param\n");
+		} else
+			ret = -EINVAL;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1775,6 +1801,7 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 	u32  stream;
 	u32 brl = 0;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1878,6 +1905,22 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(ch_info);
 		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = imx415_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
+		break;
+
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2260,7 +2303,7 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (imx415->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		shr0 = imx415->cur_vts - ctrl->val;
 		ret = imx415_write_reg(imx415->client, IMX415_LF_EXPO_REG_L,
 				       IMX415_REG_VALUE_08BIT,
@@ -2276,7 +2319,7 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (imx415->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		ret = imx415_write_reg(imx415->client, IMX415_LF_GAIN_REG_H,
 				       IMX415_REG_VALUE_08BIT,
 				       IMX415_FETCH_GAIN_H(ctrl->val));
@@ -2345,6 +2388,7 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+ctrl_end:
 	pm_runtime_put(&client->dev);
 
 	return ret;
@@ -2374,7 +2418,7 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 				V4L2_CID_LINK_FREQ,
 				ARRAY_SIZE(link_freq_items) - 1, 0,
 				link_freq_items);
-	__v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
+	v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
 
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;

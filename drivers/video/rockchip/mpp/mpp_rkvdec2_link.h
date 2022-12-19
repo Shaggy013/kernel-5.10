@@ -10,9 +10,17 @@
 
 #include "mpp_rkvdec2.h"
 
+#define RKVDEC_REG_IMPORTANT_BASE	0x2c
+#define RKVDEC_REG_IMPORTANT_INDEX	11
+#define RKVDEC_SOFTREST_EN		BIT(20)
+
 #define RKVDEC_REG_SECOND_EN_BASE	0x30
 #define RKVDEC_REG_SECOND_EN_INDEX	12
 #define RKVDEC_WAIT_RESET_EN		BIT(7)
+
+#define RKVDEC_REG_DEBUG_INT_BASE	0x440
+#define RKVDEC_REG_DEBUG_INT_INDEX	272
+#define RKVDEC_BIT_BUS_IDLE		BIT(0)
 
 /* define for link hardware */
 #define RKVDEC_LINK_ADD_CFG_NUM		1
@@ -73,6 +81,40 @@
 #define RKVDEC_CCU_CORE_ERR_BASE	0x054
 
 #define RKVDEC_CCU_CORE_RW_MASK		0x30000
+
+#define RKVDEC_MAX_WRITE_PART	6
+#define RKVDEC_MAX_READ_PART	2
+
+struct rkvdec_link_part {
+	/* register offset of table buffer */
+	u32 tb_reg_off;
+	/* start idx of task register */
+	u32 reg_start;
+	/* number of task register */
+	u32 reg_num;
+};
+
+struct rkvdec_link_info {
+	dma_addr_t iova;
+	/* total register for link table buffer */
+	u32 tb_reg_num;
+	/* next link table addr in table buffer */
+	u32 tb_reg_next;
+	/* current read back addr in table buffer */
+	u32 tb_reg_r;
+	/* secondary enable in table buffer */
+	u32 tb_reg_second_en;
+	u32 part_w_num;
+	u32 part_r_num;
+
+	struct rkvdec_link_part part_w[RKVDEC_MAX_WRITE_PART];
+	struct rkvdec_link_part part_r[RKVDEC_MAX_READ_PART];
+
+	/* interrupt read back in table buffer */
+	u32 tb_reg_int;
+	u32 tb_reg_cycle;
+	bool hack_setup;
+};
 
 struct rkvdec_link_dev {
 	struct device *dev;
@@ -145,6 +187,9 @@ struct rkvdec2_ccu {
 	struct reset_control *rst_a;
 };
 
+extern struct rkvdec_link_info rkvdec_link_rk356x_hw_info;
+extern struct rkvdec_link_info rkvdec_link_v2_hw_info;
+
 int rkvdec_link_dump(struct mpp_dev *mpp);
 
 int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec);
@@ -163,6 +208,9 @@ void rkvdec2_link_session_deinit(struct mpp_session *session);
 int rkvdec2_attach_ccu(struct device *dev, struct rkvdec2_dev *dec);
 int rkvdec2_ccu_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec);
 void *rkvdec2_ccu_alloc_task(struct mpp_session *session, struct mpp_task_msgs *msgs);
+int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+				   struct device *iommu_dev,
+				   unsigned long iova, int status, void *arg);
 irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param);
 void rkvdec2_soft_ccu_worker(struct kthread_work *work_s);
 

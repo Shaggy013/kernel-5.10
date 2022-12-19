@@ -18,6 +18,7 @@
 *.c.[012]*.*
 *.dt.yaml
 *.dtb
+*.dtbo
 *.dtb.S
 *.dwo
 *.elf
@@ -54,7 +55,7 @@ modules.order
 #
 # Top-level generic files
 #
-
+/*.img
 /out/
 /tags
 /TAGS

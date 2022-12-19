@@ -6,9 +6,21 @@
 #ifndef __SOC_ROCKCHIP_SYSTEM_MONITOR_H
 #define __SOC_ROCKCHIP_SYSTEM_MONITOR_H
 
+#include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
+#include <linux/regulator/consumer.h>
+
 enum monitor_dev_type {
 	MONITOR_TPYE_CPU = 0,	/* CPU */
 	MONITOR_TPYE_DEV,	/* GPU, NPU, DMC, and so on */
+};
+
+enum system_monitor_event_type {
+	SYSTEM_MONITOR_CHANGE_TEMP = 0,
+};
+
+struct system_monitor_event_data {
+	int temp;
 };
 
 struct volt_adjust_table {
@@ -26,14 +38,21 @@ struct temp_freq_table {
  * struct temp_opp_table - System monitor device OPP description structure
  * @rate:		Frequency in hertz
  * @volt:		Target voltage in microvolt
+ * @mem_volt:		Target voltage for memory in microvolt
  * @low_temp_volt:	Target voltage when low temperature, in microvolt
+ * @low_temp_mem_volt:	Target voltage for memory when low temperature,
+ *			in microvolt
  * @max_volt:		Maximum voltage in microvolt
+ * @max_mem_volt:	Maximum voltage for memory in microvolt
  */
 struct temp_opp_table {
 	unsigned long rate;
 	unsigned long volt;
+	unsigned long mem_volt;
 	unsigned long low_temp_volt;
+	unsigned long low_temp_mem_volt;
 	unsigned long max_volt;
+	unsigned long max_mem_volt;
 };
 
 /**
@@ -90,6 +109,7 @@ struct monitor_dev_info {
 	struct dev_pm_qos_request dev_max_freq_req;
 	struct regulator *early_reg;
 	struct regulator **regulators;
+	struct dev_pm_set_opp_data *set_opp_data;
 	struct clk *clk;
 	unsigned long low_limit;
 	unsigned long high_limit;
@@ -117,12 +137,13 @@ struct monitor_dev_profile {
 	bool is_checked;
 	int (*low_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
-	int (*update_volt)(struct monitor_dev_info *info, bool is_set_clk);
+	int (*update_volt)(struct monitor_dev_info *info);
+	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct cpumask allowed_cpus;
 	struct rockchip_opp_info *opp_info;
 };
 
-#if IS_ENABLED(CONFIG_ROCKCHIP_SYSTEM_MONITOR)
+#if IS_REACHABLE(CONFIG_ROCKCHIP_SYSTEM_MONITOR)
 struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
 				 struct monitor_dev_profile *devp);
@@ -133,13 +154,14 @@ int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 void rockchip_monitor_volt_adjust_lock(struct monitor_dev_info *info);
 void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info);
-int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
-				     bool is_set_clk);
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info);
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 int rockchip_monitor_suspend_low_temp_adjust(int cpu);
+int rockchip_system_monitor_register_notifier(struct notifier_block *nb);
+void rockchip_system_monitor_unregister_notifier(struct notifier_block *nb);
 #else
 static inline struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
@@ -177,7 +199,7 @@ rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
 }
 
 static inline int
-rockchip_monitor_check_rate_volt(struct monitor_dev_info *info, bool is_set_clk)
+rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	return 0;
 }
@@ -200,6 +222,16 @@ static inline int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 	return 0;
 };
 
+static inline int
+rockchip_system_monitor_register_notifier(struct notifier_block *nb)
+{
+	return 0;
+};
+
+static inline void
+rockchip_system_monitor_unregister_notifier(struct notifier_block *nb)
+{
+};
 #endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
 
 #endif

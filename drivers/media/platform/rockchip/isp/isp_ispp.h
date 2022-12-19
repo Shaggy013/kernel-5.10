@@ -78,6 +78,7 @@ struct max_input {
 	u32 w;
 	u32 h;
 	u32 fps;
+	bool is_fix;
 };
 
 struct rkisp_ispp_mode {
@@ -132,7 +133,5 @@ static inline void rkisp_get_bridge_sd(struct platform_device *dev,
 	*sd = NULL;
 }
 #endif
-
-extern const struct vb2_mem_ops vb2_rdma_sg_memops;
 
 #endif

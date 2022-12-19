@@ -142,6 +142,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "generic-xhci",
 	}, {
 		.compatible = "xhci-platform",
+#ifndef CONFIG_ARCH_ROCKCHIP
 	}, {
 		.compatible = "marvell,armada-375-xhci",
 		.data = &xhci_plat_marvell_armada,
@@ -178,6 +179,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	}, {
 		.compatible = "brcm,bcm7445-xhci",
 		.data = &xhci_plat_brcm,
+#endif
 	},
 	{},
 };
@@ -361,6 +363,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (device_property_read_bool(tmpdev, "quirk-skip-phy-init"))
 			xhci->quirks |= XHCI_SKIP_PHY_INIT;
 
+		if (device_property_read_bool(tmpdev,
+					      "xhci-u2-broken-suspend"))
+			xhci->quirks |= XHCI_U2_BROKEN_SUSPEND;
+
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);
 	}
@@ -480,6 +486,9 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
+
+	if (pm_runtime_suspended(dev))
+		pm_runtime_resume(dev);
 
 	ret = xhci_priv_suspend_quirk(hcd);
 	if (ret)

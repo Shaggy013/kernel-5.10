@@ -127,7 +127,7 @@
 };
 
 &dp0 {
-	pinctrl-0 = <&dp1m2_pins>;
+	pinctrl-0 = <&dp0m2_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
@@ -890,7 +890,7 @@
 		touch_gpio: touch-gpio {
 			rockchip,pins =
 				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
-				<4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

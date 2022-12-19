@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -269,6 +269,37 @@ int kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
  */
 int kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev);
 
+#if MALI_USE_CSF
+/**
+ * kbase_pm_wait_for_cores_down_scale - Wait for the downscaling of shader cores
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * This function can be called to ensure that the downscaling of cores is
+ * effectively complete and it would be safe to lower the voltage.
+ * The function assumes that caller had exercised the MCU state machine for the
+ * downscale request through the kbase_pm_update_state() function.
+ *
+ * This function needs to be used by the caller to safely wait for the completion
+ * of downscale request, instead of kbase_pm_wait_for_desired_state().
+ * The downscale request would trigger a state change in MCU state machine
+ * and so when MCU reaches the stable ON state, it can be inferred that
+ * downscaling is complete. But it has been observed that the wake up of the
+ * waiting thread can get delayed by few milli seconds and by the time the
+ * thread wakes up the power down transition could have started (after the
+ * completion of downscale request).
+ * On the completion of power down transition another wake up signal would be
+ * sent, but again by the time thread wakes up the power up transition can begin.
+ * And the power up transition could then get blocked inside the platform specific
+ * callback_power_on() function due to the thread that called into Kbase (from the
+ * platform specific code) to perform the downscaling and then ended up waiting
+ * for the completion of downscale request.
+ *
+ * Return: 0 on success, error code on error or remaining jiffies on timeout.
+ */
+int kbase_pm_wait_for_cores_down_scale(struct kbase_device *kbdev);
+#endif
+
 /**
  * kbase_pm_update_dynamic_cores_onoff - Update the L2 and shader power state
  *                                       machines after changing shader core
@@ -301,6 +332,8 @@ void kbase_pm_update_state(struct kbase_device *kbdev);
  * kbase_pm_state_machine_init - Initialize the state machines, primarily the
  *                               shader poweroff timer
  * @kbdev: Device pointer
+ *
+ * Return: 0 on success, error code on error
  */
 int kbase_pm_state_machine_init(struct kbase_device *kbdev);
 
@@ -453,6 +486,8 @@ void kbase_pm_wait_for_gpu_power_down(struct kbase_device *kbdev);
  * Setup the power management callbacks and initialize/enable the runtime-pm
  * for the Mali GPU platform device, using the callback function. This must be
  * called before the kbase_pm_register_access_enable() function.
+ *
+ * Return: 0 on success, error code on error
  */
 int kbase_pm_runtime_init(struct kbase_device *kbdev);
 
@@ -796,7 +831,7 @@ bool kbase_pm_no_runnables_sched_suspendable(struct kbase_device *kbdev)
 
 /**
  * kbase_pm_no_mcu_core_pwroff - Check whether the PM is required to keep the
- *                               MCU core powered in accordance to the active
+ *                               MCU shader Core powered in accordance to the active
  *                               power management policy
  *
  * @kbdev: Device pointer
@@ -810,7 +845,48 @@ static inline bool kbase_pm_no_mcu_core_pwroff(struct kbase_device *kbdev)
 	return kbdev->pm.backend.csf_pm_sched_flags &
 		CSF_DYNAMIC_PM_CORE_KEEP_ON;
 }
+
+/**
+ * kbase_pm_mcu_is_in_desired_state - Check if MCU is in stable ON/OFF state.
+ *
+ * @kbdev: Device pointer
+ *
+ * Return: true if MCU is in stable ON/OFF state.
+ */
+static inline bool kbase_pm_mcu_is_in_desired_state(struct kbase_device *kbdev)
+{
+	bool in_desired_state = true;
+
+	if (kbase_pm_is_mcu_desired(kbdev) && kbdev->pm.backend.mcu_state != KBASE_MCU_ON)
+		in_desired_state = false;
+	else if (!kbase_pm_is_mcu_desired(kbdev) &&
+		 (kbdev->pm.backend.mcu_state != KBASE_MCU_OFF) &&
+		 (kbdev->pm.backend.mcu_state != KBASE_MCU_IN_SLEEP))
+		in_desired_state = false;
+
+	return in_desired_state;
+}
+
 #endif
+
+/**
+ * kbase_pm_l2_is_in_desired_state - Check if L2 is in stable ON/OFF state.
+ *
+ * @kbdev: Device pointer
+ *
+ * Return: true if L2 is in stable ON/OFF state.
+ */
+static inline bool kbase_pm_l2_is_in_desired_state(struct kbase_device *kbdev)
+{
+	bool in_desired_state = true;
+
+	if (kbase_pm_is_l2_desired(kbdev) && kbdev->pm.backend.l2_state != KBASE_L2_ON)
+		in_desired_state = false;
+	else if (!kbase_pm_is_l2_desired(kbdev) && kbdev->pm.backend.l2_state != KBASE_L2_OFF)
+		in_desired_state = false;
+
+	return in_desired_state;
+}
 
 /**
  * kbase_pm_lock - Lock all necessary mutexes to perform PM actions

@@ -39,6 +39,7 @@
 #include "jaguar1_video_eq.h"
 #include "jaguar1_mipi.h"
 #include "jaguar1_drv.h"
+#include "jaguar1_v4l2.h"
 
 #define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x1)
 
@@ -93,6 +94,7 @@ struct jaguar1_pixfmt {
 struct jaguar1_framesize {
 	u16 width;
 	u16 height;
+	struct v4l2_fract max_fps;
 	enum NC_VIVO_CH_FORMATDEF fmt_idx;
 };
 
@@ -140,22 +142,38 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 	{
 		.width		= 2560,
 		.height		= 1440,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_720P_25P,
 	}
 #else
 	{
 		.width		= 1280,
 		.height		= 720,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_720P_25P_EX_Btype,
 	},
 	{
 		.width		= 1920,
 		.height		= 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_1080P_25P,
 	},
 	{
 		.width		= 2560,
 		.height		= 1440,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_720P_25P,
 	}
 #endif
@@ -580,6 +598,19 @@ static int jaguar1_set_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
+static int jaguar1_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct jaguar1 *jaguar1 = to_jaguar1(sd);
+	const struct jaguar1_framesize *size = jaguar1->frame_size;
+
+	mutex_lock(&jaguar1->mutex);
+	fi->interval = size->max_fps;
+	mutex_unlock(&jaguar1->mutex);
+
+	return 0;
+}
+
 static void jaguar1_get_module_inf(struct jaguar1 *jaguar1,
 				   struct rkmodule_inf *inf)
 {
@@ -701,6 +732,7 @@ static const struct dev_pm_ops jaguar1_pm_ops = {
 
 static const struct v4l2_subdev_video_ops jaguar1_video_ops = {
 	.s_stream = jaguar1_stream,
+	.g_frame_interval = jaguar1_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jaguar1_subdev_pad_ops = {
@@ -956,6 +988,8 @@ static int jaguar1_probe(struct i2c_client *client,
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
+	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
+			client->addr << 1, client->adapter->name);
 	return 0;
 
 err_power_off:
@@ -1010,17 +1044,20 @@ static struct i2c_driver jaguar1_i2c_driver = {
 	.id_table	= jaguar1_match_id,
 };
 
-static int __init sensor_mod_init(void)
+int nvp6324_sensor_mod_init(void)
 {
 	return i2c_add_driver(&jaguar1_i2c_driver);
 }
+
+#ifndef CONFIG_VIDEO_REVERSE_IMAGE
+device_initcall_sync(nvp6324_sensor_mod_init);
+#endif
 
 static void __exit sensor_mod_exit(void)
 {
 	i2c_del_driver(&jaguar1_i2c_driver);
 }
 
-device_initcall_sync(sensor_mod_init);
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("jaguar1 sensor driver");

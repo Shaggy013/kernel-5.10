@@ -8,7 +8,6 @@
 #include <linux/spinlock.h>
 #include <linux/v4l2-mediabus.h>
 
-#include "hw.h"
 #include "dev.h"
 #include "procfs.h"
 
@@ -290,6 +289,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 
 		seq_printf(f, "\thdr mode: %s\n",
 			   dev->hdr.hdr_mode == NO_HDR ? "normal" :
+			   dev->hdr.hdr_mode == HDR_COMPR ? "hdr_compr" :
 			   dev->hdr.hdr_mode == HDR_X2 ? "hdr_x2" : "hdr_x3");
 
 		seq_printf(f, "\tformat:%s/%ux%u@%d\n",
@@ -315,11 +315,12 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->channels[0].width, dev->channels[0].height,
 			   dev->channels[0].crop_st_x, dev->channels[0].crop_st_y);
 		seq_printf(f, "\tcompact:%s\n", stream->is_compact ? "enable" : "disabled");
-		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx);
+		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx - 1);
 		if (dev->inf_id == RKCIF_MIPI_LVDS) {
 			time_val = div_u64(stream->readout.early_time, 1000000);
 			seq_printf(f, "\tearly:%u ms\n", time_val);
-			if (dev->hdr.hdr_mode == NO_HDR) {
+			if (dev->hdr.hdr_mode == NO_HDR ||
+			    dev->hdr.hdr_mode == HDR_COMPR) {
 				time_val = div_u64(stream->readout.readout_time, 1000000);
 				seq_printf(f, "\treadout:%u ms\n", time_val);
 			} else {

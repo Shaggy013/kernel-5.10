@@ -6,7 +6,7 @@
 
 / {
 	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0";
+		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 coherent_pool=1m systemd.gpt_auto=0 cgroup_enable=memory swapaccount=1 libata.force=3.0G";
 	};
 
 	aliases {
@@ -54,13 +54,6 @@
 };
 
 &reserved_memory {
-	linux,cma {
-		compatible = "shared-dma-pool";
-		inactive;
-		reusable;
-		reg = <0x0 0x10000000 0x0 0x00800000>;
-		linux,cma-default;
-	};
 
 	ramoops: ramoops@110000 {
 		compatible = "ramoops";

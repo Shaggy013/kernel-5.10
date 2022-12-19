@@ -11,18 +11,18 @@
 	};
 };
 
-&cpu0_opp_table {
-	/delete-node/ opp-1992000000;
-};
+//&cpu0_opp_table {
+//	/delete-node/ opp-1992000000;
+//};
 
 &lpddr4_params {
 	/* freq info, freq_0 is final frequency, unit: MHz */
-	freq_0 = <1056>;
+	freq_0 = <1560>;
 };
 
 &lpddr4x_params {
 	/* freq info, freq_0 is final frequency, unit: MHz */
-	freq_0 = <1056>;
+	freq_0 = <1560>;
 };
 
 &power {
@@ -47,6 +47,7 @@
 	extcon = <&usb2phy0>;
 	maximum-speed = "high-speed";
 	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 };
 
 /delete-node/ &combphy0_us;

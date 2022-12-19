@@ -216,6 +216,7 @@ int rfkill_get_wifi_power_state(int *power)
 
 	return 0;
 }
+EXPORT_SYMBOL(rfkill_get_wifi_power_state);
 
 /**************************************************************************
  *
@@ -435,7 +436,7 @@ static int get_wifi_addr_vendor(unsigned char *addr)
 		    addr[5]);
 		ret = rk_vendor_write(WIFI_MAC_ID, addr, 6);
 		if (ret != 0) {
-			LOG("%s: rk_vendor_write failed %d\n"
+			LOG("%s: rk_vendor_write failed %d\n",
 			    __func__, ret);
 			memset(addr, 0, 6);
 			return -1;

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2013-2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -41,8 +41,7 @@ Optional:
 - mali-supply : Phandle to the top level regulator for the Mali device.
                 Refer to
 Documentation/devicetree/bindings/regulator/regulator.txt for details.
-- shadercores-supply : Phandle to shader cores regulator for the Mali device.
-                       This is optional.
+- mem-supply : Phandle to memory regulator for the Mali device. This is optional.
 - operating-points-v2 : Refer to Documentation/devicetree/bindings/power/mali-opp.txt
 for details.
 - quirks_gpu : Used to write to the JM_CONFIG or CSF_CONFIG register.
@@ -130,7 +129,7 @@ for details.
 		   set and the setting coresponding to the SYSC_ALLOC register.
 
 
-Example for a Mali GPU with 1 clock and no regulators:
+Example for a Mali GPU with 1 clock and 1 regulator:
 
 gpu@0xfc010000 {
 	compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
@@ -202,7 +201,7 @@ gpu: gpu@6e000000 {
 	clocks = <&clk_mali 0>, <&clk_mali 1>;
 	clock-names = "clk_mali", "shadercores";
 	mali-supply = <&supply0_3v3>;
-	shadercores-supply = <&supply1_3v3>;
+	mem-supply = <&supply1_3v3>;
 	system-coherency = <31>;
 	operating-points-v2 = <&gpu_opp_table>;
 };

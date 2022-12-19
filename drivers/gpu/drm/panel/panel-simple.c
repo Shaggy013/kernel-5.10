@@ -518,16 +518,6 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	gpiod_direction_output(p->enable_gpio, 1);
 
-	if (p->desc->delay.reset)
-		msleep(p->desc->delay.prepare);
-
-	gpiod_direction_output(p->reset_gpio, 1);
-
-	if (p->desc->delay.reset)
-		msleep(p->desc->delay.reset);
-
-	gpiod_direction_output(p->reset_gpio, 0);
-
 	delay = p->desc->delay.prepare;
 	if (p->no_hpd)
 		delay += p->desc->delay.hpd_absent_delay;
@@ -554,12 +544,19 @@ static int panel_simple_prepare(struct drm_panel *panel)
 		}
 	}
 
-	if (p->desc->init_seq)
-		if (p->dsi)
-			panel_simple_xfer_dsi_cmd_seq(p, p->desc->init_seq);
+	gpiod_direction_output(p->reset_gpio, 1);
+
+	if (p->desc->delay.reset)
+		msleep(p->desc->delay.reset);
+
+	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->delay.init)
 		msleep(p->desc->delay.init);
+
+	if (p->desc->init_seq)
+		if (p->dsi)
+			panel_simple_xfer_dsi_cmd_seq(p, p->desc->init_seq);
 
 	p->prepared = true;
 
@@ -799,8 +796,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	}
 
 	panel->supply = devm_regulator_get(dev, "power");
-	if (IS_ERR(panel->supply))
-		return PTR_ERR(panel->supply);
+	if (IS_ERR(panel->supply)) {
+		err = PTR_ERR(panel->supply);
+		dev_err(dev, "failed to get power regulator: %d\n", err);
+		return err;
+	}
 
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_ASIS);
 	if (IS_ERR(panel->enable_gpio)) {
@@ -831,8 +831,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		panel->ddc = of_find_i2c_adapter_by_node(ddc);
 		of_node_put(ddc);
 
-		if (!panel->ddc)
-			return -EPROBE_DEFER;
+		if (!panel->ddc) {
+			err = -EPROBE_DEFER;
+			dev_err(dev, "failed to find ddc-i2c-bus: %d\n", err);
+			return err;
+		}
 	}
 
 	if (desc == &panel_dpi) {
@@ -840,6 +843,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		err = panel_dpi_probe(dev, panel);
 		if (err)
 			goto free_ddc;
+		desc = panel->desc;
 	} else {
 		if (!of_get_display_timing(dev->of_node, "panel-timing", &dt))
 			panel_simple_parse_panel_timing_node(dev, panel, &dt);
@@ -904,8 +908,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	drm_panel_init(&panel->base, dev, &panel_simple_funcs, connector_type);
 
 	err = drm_panel_of_backlight(&panel->base);
-	if (err)
+	if (err) {
+		dev_err(dev, "failed to find backlight: %d\n", err);
 		goto free_ddc;
+	}
 
 	drm_panel_add(&panel->base);
 
@@ -2414,7 +2420,7 @@ static const struct display_timing innolux_g070y2_l01_timing = {
 static const struct panel_desc innolux_g070y2_l01 = {
 	.timings = &innolux_g070y2_l01_timing,
 	.num_timings = 1,
-	.bpc = 6,
+	.bpc = 8,
 	.size = {
 		.width = 152,
 		.height = 91,

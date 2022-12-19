@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX&sata1 -License-Identifier: (GPL-2.0+ OR MIT)
 /*
  *  2022 Shaggy013
  *
@@ -9,52 +9,47 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include <dt-bindings/input/rk-input.h>
+//#include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/sensor-dev.h>
-#include "rk3566-diff2.dtsi"
-//#include "rk3566.dtsi"
-//#include "rk3568-linux.dtsi"
+#include <dt-bindings/display/media-bus-format.h>
+#include <dt-bindings/display/rockchip_vop.h>
+/* for 1056000 memeory speed */
+//#include "rk3566-diff3.dtsi"
+/* for 1560000 memeory speed */
+//#include "rk3566-diff2.dtsi" 
+#include "rk3566.dtsi"
+#include "rk3568-android.dtsi"
 
 / {
 	model = "Pine64 RK3566 Quartz64-A Board";
 	compatible = "rockchip,rk3566-quartz64-a", "rockchip,rk3566";
 
-	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 root=PARTLABEL=rootfs rootfstype=ext4 rw rootwait overlayroot=device:dev=PARTLABEL=userdata,fstype=ext4,mkfs=1";
-	};
 //	chosen: chosen {
-//		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0";
+//		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 root=PARTLABEL=rootfs rootfstype=ext4 rw rootwait overlayroot=device:dev=PARTLABEL=userdata,fstype=ext4,mkfs=1";
+//	};
+//	chosen: chosen {
+//		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 coherent_pool=1m";
 //
-	fiq-debugger {
-		compatible = "rockchip,fiq-debugger";
-		rockchip,serial-id = <2>;
-		rockchip,wake-irq = <0>;
-		/* If enable uart uses irq instead of fiq */
-		rockchip,irq-mode-enable = <1>;
-		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
-		interrupts = <GIC_SPI 252 IRQ_TYPE_LEVEL_LOW>;
+
+	aliases {
+		mmc0 = &sdmmc0;
+		mmc1 = &sdmmc1;
+		mmc2 = &sdhci;
+	};
+
+	fan: gpio_fan {
+		compatible = "gpio-fan";
+		gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <0    0
+				      4500 1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&uart2m0_xfer>;
-		status = "okay";
+		pinctrl-0 = <&fan_en_h>;
+		#cooling-cells = <2>;
 	};
 
-	debug: debug@fd904000 {
-		compatible = "rockchip,debug";
-		reg = <0x0 0xfd904000 0x0 0x1000>,
-			<0x0 0xfd905000 0x0 0x1000>,
-			<0x0 0xfd906000 0x0 0x1000>,
-			<0x0 0xfd907000 0x0 0x1000>;
-	};
 
-	cspmu: cspmu@fd90c000 {
-		compatible = "rockchip,cspmu";
-		reg = <0x0 0xfd90c000 0x0 0x1000>,
-			<0x0 0xfd90d000 0x0 0x1000>,
-			<0x0 0xfd90e000 0x0 0x1000>,
-			<0x0 0xfd90f000 0x0 0x1000>;
-	};
-	
 	vcc12v_dcin: vcc12v_dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -148,15 +143,6 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_sys>;
 	};
-
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		pwms = <&pwm14 0 1000000 0>;
-		brightness-levels = <0 4 8 16 32 64 128 255>;
-		default-brightness-level = <6>;
-		status = "disabled";
-	};
-
 	pcie20_3v3: pcie20_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie20_3v3";
@@ -180,33 +166,32 @@
 		status = "okay";
 	};
 
-	adc_keys: adc-keys {
-		status = "disabled";
-		compatible = "adc-keys";
-		io-channels = <&saradc 0>;
-		io-channel-names = "buttons";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-
-		vol-up-key {
-			label = "volume up";
-			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <1750>;
-		};
-
-		vol-down-key {
-			label = "volume down";
-			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <297500>;
-		};
-	};
+//	adc_keys: adc-keys {
+//		compatible = "adc-keys";
+//		io-channels = <&saradc 0>;
+//		io-channel-names = "buttons";
+//		keyup-threshold-microvolt = <1800000>;
+//		poll-interval = <100>;
+//
+//		vol-up-key {
+//			label = "volume up";
+//			linux,code = <KEY_VOLUMEUP>;
+//			press-threshold-microvolt = <1750>;
+//		};
+//
+//		vol-down-key {
+//			label = "volume down";
+//			linux,code = <KEY_VOLUMEDOWN>;
+//			press-threshold-microvolt = <297500>;
+//		};
+//	};
 
 	hdmi_sound: hdmi-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,hdmi";
-		status = "disabled";
+		status = "okay";
 
 		simple-audio-card,cpu {
 				sound-dai = <&i2s0_8ch>;
@@ -215,42 +200,48 @@
 				sound-dai = <&hdmi>;
 		};
 	};
-/*	
-	reserved_memory: reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-		
-		  global autoconfigured region for contiguous allocations 
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x2000000>;
-			linux,cma-default;
-		}; 
 
-		rknpu_reserved: rknpu {
-			compatible = "shared-dma-pool";
-			inactive;
-			reusable;     
-			size = <0x0 0x20000000>;
-			alignment = <0x0 0x1000>;
-		};
-	};
- */
-	rk817_sound: rk817-sound {
-		status = "okay";
+	spdif-sound {
+		status = "disabled";
 		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rk817-codec";
-		simple-audio-card,mclk-fs = <256>;
-
+		simple-audio-card,name = "ROCKCHIP,SPDIF";
 		simple-audio-card,cpu {
-			sound-dai = <&i2s1_8ch>;
+				sound-dai = <&spdif_8ch>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&rk817_codec>;
+				sound-dai = <&spdif_out>;
 		};
+	};
+
+	spdif_out: spdif-out {
+			status = "okay";
+			compatible = "linux,spdif-dit";
+			#sound-dai-cells = <0>;
+	};
+
+
+	vad_sound: vad-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3568-vad";
+		rockchip,cpu = <&i2s1_8ch>;
+		rockchip,codec = <&rk817_codec>, <&vad>;
+	};
+	
+	rk817_sound: rk817-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk817";
+		hp-det-gpio = <&gpio4 RK_PC4 GPIO_ACTIVE_LOW>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s1_8ch>;
+		rockchip,codec = <&rk817_codec>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 2>;
+		io-channel-names = "adc-detect";
+
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -294,8 +285,8 @@
 		pinctrl-0 = <&uart1m0_rtsn>;
 		pinctrl-1 = <&uart1_gpios>;
 		BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 	
@@ -311,7 +302,7 @@
 			retain-state-suspended;
 		};
 
-		led-diy {
+	led-diy {
 			label = "diy-led";
 			default-state = "on";
 			gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
@@ -321,6 +312,40 @@
 			retain-state-suspended;
 		};
 	};
+	test-power {
+		status = "okay";
+	};
+
+	
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+ /*		global autoconfigured region for contiguous allocations 
+		linux,cma {
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			reg = <0x0 0x10000000 0x0 0x10000000>;
+			linux,cma-default;
+		};
+
+		rknpu_reserved: rknpu {
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;     
+			size = <0x0 0x20000000>;
+			alignment = <0x0 0x1000>;
+		};
+*/
+	};
+
+};
+
+&sram {
+	reg = <0x0 0xfdcc0000 0x0 0x10000>;
+	ranges = <0x0 0x0 0xfdcc0000 0x10000>;
 };
 
 &bus_npu {
@@ -341,49 +366,34 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
-&csi2_dphy_hw {
-	status = "okay";
-};
 
-&csi2_dphy0 {
+&dfi {
 	status = "disabled";
 };
 
-&csi2_dphy1 {
-    status = "disabled";
-   /*
-    * dphy1 only used for split mode,
-    * can be used  concurrently  with dphy2
-    * full mode and split mode are mutually exclusive
-    */
-};
-
-&csi2_dphy2{
-    status = "disabled";
-};
-
-
-&dfi {
-	status = "okay";
-};
+//&display_subsystem {
+//    status = "okay";
+//};
 
 &dmc {
+	//auto-freq-en = <0>;
 	center-supply = <&vdd_logic>;
-	status = "okay";
+	status = "disabled";
 };
 
 &gmac1 {
 	phy-mode = "rgmii";
 	clock_in_out = "input";
-
+	
 	snps,reset-gpio = <&gpio0 RK_PC3 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
-
+	
 	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru SCLK_GMAC1>;
 	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru SCLK_GMAC1>, <&gmac1_clkin>;
-
+	
+	
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m0_miim
 		     &gmac1m0_tx_bus2
@@ -391,10 +401,10 @@
 		     &gmac1m0_rgmii_clk
 		     &gmac1m0_clkinout
 		     &gmac1m0_rgmii_bus>;
-
+	
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
-
+	
 	phy-handle = <&rgmii_phy1>;
 	phy-supply = <&vcc_3v3>;
 	status = "okay";
@@ -402,7 +412,6 @@
 
 &gpu {
 	mali-supply = <&vdd_gpu>;
-	//mem-supply = <&vcc_ddr>;
 	status = "okay";
 };
 
@@ -419,7 +428,12 @@
 };
 
 &hdmi_sound {
-	status = "disabled";
+	status = "okay";
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vp0_out_hdmi>;
 };
 
 &i2c0 {
@@ -433,6 +447,8 @@
 		regulator-name = "vdd_cpu";
 		regulator-min-microvolt = <712500>;
 		regulator-max-microvolt = <1390000>;
+                regulator-init-microvolt = <900000>;
+		regulator-initial-mode = <1>;
 		regulator-ramp-delay = <2300>;
 		fcs,suspend-voltage-selector = <1>;
 		regulator-boot-on;
@@ -514,7 +530,7 @@
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_logic";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <900000>;
 				};
 			};
@@ -551,8 +567,7 @@
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vcc_3v3";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -706,7 +721,7 @@
 			chrg_finish_cur = <300>;
 			virtual_power = <0>;
 			dc_det_adc = <0>;
-		//	extcon = <&usb2phy0>;
+			extcon = <&usb2phy0>;
 		};
 
 		rk817_codec: codec {
@@ -729,7 +744,7 @@
 };
 
 &i2c1 {
-	status = "okay";
+	status = "disabled";
 	tps65185: tps65185@68 {
 		status = "okay";
 		compatible = "ti,tps65185";
@@ -769,15 +784,12 @@ status = "okay";
 //	pinctrl-0 = <&i2c3m1_xfer>;
 };
 
-&i2c5 {
-//	status = "okay";
-};
-
 &i2s0_8ch {
 	status = "okay";
 };
 
 &i2s1_8ch {
+    
 	status = "okay";
 	rockchip,clk-trcm = <1>;
 	pinctrl-names = "default";
@@ -785,6 +797,10 @@ status = "okay";
 		     &i2s1m0_lrcktx
 		     &i2s1m0_sdi0
 		     &i2s1m0_sdo0>;
+};
+
+&spdif_8ch {
+	status = "okay";
 };
 
 &iep {
@@ -814,28 +830,37 @@ status = "okay";
         };
 };
 
-&video_phy0 {
- 	status = "disabled";
-};
-
 &mpp_srv {
 	status = "okay";
 };
 
-&nandc0 {
-	status = "disabled";
-};
+//&nandc0 {
+//	status = "okay";
+//};
 
 &pcie2x1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_reset_h>;
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+	status = "disabled";
 	vpcie3v3-supply = <&pcie20_3v3>;
 };
 
 &pinctrl {
-	
+
+	bt {
+		bt_enable_h: bt-enable-h {
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_host_wake_l: bt-host-wake-l {
+			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		bt_wake_l: bt-wake-l {
+			rockchip,pins = <2 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 
 	headphone {
 		hp_det: hp-det {
@@ -876,12 +901,12 @@ status = "okay";
 
 		soc_slppin_gpio: soc_slppin_gpio {
 			rockchip,pins =
-				<0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low_pull_down>;
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA2 1 &pcfg_pull_up>;
+				<0 RK_PA2 1 &pcfg_pull_none>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
@@ -892,7 +917,7 @@ status = "okay";
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 	
@@ -910,7 +935,7 @@ status = "okay";
 
 	wireless-wlan {
 		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <2 RK_PC3 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -929,6 +954,13 @@ status = "okay";
 			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+	
+	fan {
+		fan_en_h: fan-en-h {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 };
 
 &pmu_io_domains {
@@ -936,7 +968,7 @@ status = "okay";
 	pmuio1-supply = <&vcc3v3_pmu>;
 	pmuio2-supply = <&vcc3v3_pmu>;
 	vccio1-supply = <&vccio_acodec>;
-	vccio2-supply = <&vcc_1v8>;
+	vccio2-supply = <&vcc_3v3>;
 	vccio3-supply = <&vccio_sd>;
 	vccio4-supply = <&vcca1v8_pmu>;
 	vccio5-supply = <&vcc_3v3>;
@@ -944,18 +976,108 @@ status = "okay";
 	vccio7-supply = <&vcc_3v3>;
 };
 
-&pwm4 {
-	status = "okay";
-};
+&pwm3 {
+	compatible = "rockchip,remotectl-pwm";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3_pins>;
+	remote_pwm_id = <3>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <0>;
+	status = "disabled";
 
-&reserved_memory {
-	ramoops: ramoops@110000 {
-		compatible = "ramoops";
-		reg = <0x0 0x110000 0x0 0xf0000>;
-		record-size = <0x20000>;
-		console-size = <0x80000>;
-		ftrace-size = <0x00000>;
-		pmsg-size = <0x50000>;
+	ir_key1 {
+		rockchip,usercode = <0x4040>;
+		rockchip,key_table =
+			<0xf2	KEY_REPLY>,
+			<0xba	KEY_BACK>,
+			<0xf4	KEY_UP>,
+			<0xf1	KEY_DOWN>,
+			<0xef	KEY_LEFT>,
+			<0xee	KEY_RIGHT>,
+			<0xbd	KEY_HOME>,
+			<0xea	KEY_VOLUMEUP>,
+			<0xe3	KEY_VOLUMEDOWN>,
+			<0xe2	KEY_SEARCH>,
+			<0xb2	KEY_POWER>,
+			<0xbc	KEY_MUTE>,
+			<0xec	KEY_MENU>,
+			<0xbf	0x190>,
+			<0xe0	0x191>,
+			<0xe1	0x192>,
+			<0xe9	183>,
+			<0xe6	248>,
+			<0xe8	185>,
+			<0xe7	186>,
+			<0xf0	388>,
+			<0xbe	0x175>;
+	};
+
+	ir_key2 {
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table =
+			<0xf9	KEY_HOME>,
+			<0xbf	KEY_BACK>,
+			<0xfb	KEY_MENU>,
+			<0xaa	KEY_REPLY>,
+			<0xb9	KEY_UP>,
+			<0xe9	KEY_DOWN>,
+			<0xb8	KEY_LEFT>,
+			<0xea	KEY_RIGHT>,
+			<0xeb	KEY_VOLUMEDOWN>,
+			<0xef	KEY_VOLUMEUP>,
+			<0xf7	KEY_MUTE>,
+			<0xe7	KEY_POWER>,
+			<0xfc	KEY_POWER>,
+			<0xa9	KEY_VOLUMEDOWN>,
+			<0xa8	KEY_PLAYPAUSE>,
+			<0xe0	KEY_VOLUMEDOWN>,
+			<0xa5	KEY_VOLUMEDOWN>,
+			<0xab	183>,
+			<0xb7	388>,
+			<0xe8	388>,
+			<0xf8	184>,
+			<0xaf	185>,
+			<0xed	KEY_VOLUMEDOWN>,
+			<0xee	186>,
+			<0xb3	KEY_VOLUMEDOWN>,
+			<0xf1	KEY_VOLUMEDOWN>,
+			<0xf2	KEY_VOLUMEDOWN>,
+			<0xf3	KEY_SEARCH>,
+			<0xb4	KEY_VOLUMEDOWN>,
+			<0xa4	KEY_SETUP>,
+			<0xbe	KEY_SEARCH>;
+	};
+
+	ir_key3 {
+		rockchip,usercode = <0x1dcc>;
+		rockchip,key_table =
+			<0xee	KEY_REPLY>,
+			<0xf0	KEY_BACK>,
+			<0xf8	KEY_UP>,
+			<0xbb	KEY_DOWN>,
+			<0xef	KEY_LEFT>,
+			<0xed	KEY_RIGHT>,
+			<0xfc	KEY_HOME>,
+			<0xf1	KEY_VOLUMEUP>,
+			<0xfd	KEY_VOLUMEDOWN>,
+			<0xb7	KEY_SEARCH>,
+			<0xff	KEY_POWER>,
+			<0xf3	KEY_MUTE>,
+			<0xbf	KEY_MENU>,
+			<0xf9	0x191>,
+			<0xf5	0x192>,
+			<0xb3	388>,
+			<0xbe	KEY_1>,
+			<0xba	KEY_2>,
+			<0xb2	KEY_3>,
+			<0xbd	KEY_4>,
+			<0xf9	KEY_5>,
+			<0xb1	KEY_6>,
+			<0xfc	KEY_7>,
+			<0xf8	KEY_8>,
+			<0xb0	KEY_9>,
+			<0xb6	KEY_0>,
+			<0xb5	KEY_BACKSPACE>;
 	};
 };
 
@@ -963,31 +1085,12 @@ status = "okay";
 	status = "okay";
 };
 
-&rkisp {
-	status = "disabled";
-};
-
-&rkisp_mmu {
-	status = "disabled";
-};
-
-&rkisp_vir0 {
-	status = "disabled";
-
-	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		isp0_in: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&video_phy0>;
-		};
-	};
-};
-
 &rkvdec {
+	rockchip,disable-auto-freq;
+	assigned-clock-rates = <396000000>, <396000000>, <396000000>, <600000000>;
 	status = "okay";
 };
+
 
 &rkvdec_mmu {
 	status = "okay";
@@ -1016,10 +1119,6 @@ status = "okay";
 	status = "okay";
 };
 
-&route_hdmi {
-	status = "okay";
-	connect = <&vp0_out_hdmi>;
-};
 
 &saradc {
 	status = "okay";
@@ -1028,20 +1127,22 @@ status = "okay";
 
 /* sata1 is muxed with the usb3 port */
 &sata1 {
-//	status = "disabled";
-	status = "okay";
-};
-
-/* sata2 is muxed with the pcie2 slot*/
-&sata2 {
-	target-supply = <&pcie20_3v3>;
 	status = "disabled";
 //	status = "okay";
 };
 
+/* sata2 is muxed with the pcie2 slot*/
+// /delete-node/ &sata2;
+&sata2 {
+	target-supply = <&pcie20_3v3>;
+//	status = "disabled";
+	status = "okay";
+};
+
 &sdhci {
 	bus-width = <8>;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	non-removable;
 	keep-power-in-suspend;
 	rockchip,txclk-tapnum = <0x8>;
@@ -1051,7 +1152,8 @@ status = "okay";
 
 &sdmmc0 {
 	max-frequency = <150000000>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -1087,7 +1189,7 @@ status = "okay";
 &sfc {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "disabled";
+	status = "okay";
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -1098,11 +1200,35 @@ status = "okay";
 	};
 };
 
-&tsadc {
-	status = "okay";
+&soc_thermal {
+	trips {
+		cpu_warm: cpu_warm {
+			temperature = <55000>;
+			hysteresis = <2000>;
+			type = "active";
+		};
+
+		cpu_hot: cpu_hot {
+			temperature = <65000>;
+			hysteresis = <2000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map2 {
+			trip = <&cpu_warm>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 1>;
+		};
+
+		map3 {
+			trip = <&cpu_hot>;
+			cooling-device = <&fan 2 THERMAL_NO_LIMIT>;
+		};
+	};
 };
 
-&uart0 {
+&tsadc {
 	status = "okay";
 };
 
@@ -1110,6 +1236,12 @@ status = "okay";
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
+};
+
+&uart2 {
+//	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m0_xfer>;
 };
 
 &u2phy0_host {
@@ -1137,7 +1269,7 @@ status = "okay";
 };
 
 &usbdrd_dwc3 {
-	dr_mode = "host";
+	dr_mode = "otg";
 	extcon = <&usb2phy0>;
 	status = "okay";
 };
@@ -1148,12 +1280,12 @@ status = "okay";
 
 /* usb3 controller is muxed with sata1 */
 &usbhost_dwc3 {
-	status = "disabled";
+	status = "okay";
 };
 
 /* usb3 controller is muxed with sata1 */
 &usbhost30 {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_host0_ehci {
@@ -1176,6 +1308,13 @@ status = "okay";
 	status = "okay";
 };
 
+&vad {
+	rockchip,audio-src = <&i2s1_8ch>;
+	rockchip,buffer-time-ms = <128>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <0>;
+};
+
 &vdpu {
 	status = "okay";
 };
@@ -1192,18 +1331,44 @@ status = "okay";
 	status = "okay";
 };
 
-&vop {
-	disable-win-move;
+&video_phy0 {
 	status = "okay";
 };
 
-// &vop {
-//	disable-win-move; support-multi-area;
-//	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
-//	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
-//	status = "okay";
-//  };
+&video_phy1 {
+	status = "disabled";
+};
+
+&vop {
+	// disable-win-move;
+        support-multi-area;
+        //cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
+	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
+	status = "okay";
+};
 
 &vop_mmu {
 	status = "okay";
+};
+
+&rockchip_suspend {
+	status = "okay";
+	//rockchip,virtual-poweroff = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_CENTER_OFF
+		| RKPM_SLP_HW_PLLS_OFF
+		| RKPM_SLP_PMUALIVE_32K
+		| RKPM_SLP_PMIC_LP
+		| RKPM_SLP_32K_PVTM
+		)
+	>;
+	rockchip,wakeup-config = <
+		(0
+		| RKPM_PWM0_WKUP_EN
+		| RKPM_CPU0_WKUP_EN
+		| RKPM_GPIO_WKUP_EN
+		)
+	>;
 };

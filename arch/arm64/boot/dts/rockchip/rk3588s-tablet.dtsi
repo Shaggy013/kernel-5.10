@@ -77,16 +77,48 @@
 		default-brightness-level = <200>;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <4500000>;
+	};
+
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
 		rockchip,uboot-charge-on = <1>;
 		rockchip,android-charge-on = <0>;
 		rockchip,uboot-low-power-voltage = <6800>;
 		rockchip,screen-on-voltage = <6900>;
-		rockchip,uboot-exit-charge-voltage = <7000>;
 		rockchip,uboot-exit-charge-level = <2>;
-		rockchip,uboot-exit-charge-auto = <1>;
+		rockchip,uboot-exit-charge-auto = <0>;
+		rockchip,system-suspend = <1>;
+		regulator-on-in-mem = <&vdd_log_s0>, <&vcc_2v0_pldo_s3>,
+		      <&vdd2_ddr_s3>, <&vcc_1v1_nldo_s3>,
+		      <&vdd1_1v8_ddr_s3>, <&vcc_1v8_s3>,
+		      <&master_pldo6_s3>, <&vdd_0v75_s3>,
+		      <&vdd2l_0v9_ddr_s3>, <&vdd_1v8_pll_s0>, <&pldo6_s3>;
+
+		regulator-off-in-mem = <&vdd_gpu_s0>, <&vdd_npu_s0>,
+		       <&vdd_vdenc_s0>, <&vdd_gpu_mem_s0>, <&vdd_npu_mem_s0>,
+		       <&vdd_vdenc_mem_s0>, <&avcc_1v8_s0>, <&vcc_3v3_s0>,
+		       <&vccio_sd_s0>, <&master_nldo3>, <&avdd_0v75_s0>,
+		       <&vdd_0v85_s0>, <&vdd_cpu_big1_s0>, <&vdd_cpu_big0_s0>,
+		       <&vdd_cpu_lit_s0>, <&vdd_cpu_big1_mem_s0>, <&vdd_cpu_big0_mem_s0>,
+		       <&vcc_1v8_s0>, <&vdd_cpu_lit_mem_s0>, <&vddq_ddr_s0>,
+		       <&vdd_ddr_s0>, <&vcc_1v8_cam_s0>, <&avdd1v8_ddr_pll_s0>,
+		       <&vcc_3v3_sd_s0>, <&vcc_2v8_cam_s0>, <&vdd_0v75_pll_s0>,
+		       <&vdd_ddr_pll_s0>, <&slave_nldo3>, <&avdd_1v2_cam_s0>,
+		       <&avdd_1v2_s0>, <&vcc_3v3_s3>;
 		status = "okay";
+	};
+
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name= "rockchip,dp0";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx2>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
 	};
 
 	es7202_sound_micarray: es7202-sound-micarray {
@@ -263,6 +295,10 @@
 	};
 };
 
+&av1d_mmu {
+	status = "okay";
+};
+
 &avdd_1v2_cam_s0 {
 	regulator-min-microvolt = <1350000>;
 	regulator-max-microvolt = <1350000>;
@@ -297,6 +333,7 @@
 };
 
 &edp0 {
+	support-psr;
 	force-hpd;
 	status = "okay";
 
@@ -326,6 +363,23 @@
 };
 
 &hdptxphy0 {
+	/* Single Vdiff Training Table for power reduction (optional) */
+	training-table = /bits/ 8 <
+		/* voltage swing 0, pre-emphasis 0->3 */
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		/* voltage swing 1, pre-emphasis 0->2 */
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		/* voltage swing 2, pre-emphasis 0->1 */
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		0x0d 0x00 0x00 0x00 0x00 0x00
+		/* voltage swing 3, pre-emphasis 0 */
+		0x0d 0x00 0x00 0x00 0x00 0x00
+	>;
 	status = "okay";
 };
 
@@ -361,6 +415,7 @@
 			 0x2F 0x00 0x64 0xA5 0xB5 0x00 0xF8 0x39>;
 		cellwise,dual-cell = <1>;
 		cellwise,monitor-interval-ms = <5000>;
+		monitored-battery = <&battery>;
 		power-supplies = <&bq25703>;
 	};
 
@@ -543,14 +598,6 @@
 	};
 };
 
-&csi2_dcphy0_hw {
-	status = "okay";
-};
-
-&csi2_dcphy1_hw {
-	status = "okay";
-};
-
 &csi2_dcphy0 {
 	status = "okay";
 
@@ -609,6 +656,14 @@
 			};
 		};
 	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
+	status = "okay";
 };
 
 &mipi0_csi2 {
@@ -865,7 +920,7 @@
 		touch_gpio: touch-gpio {
 			rockchip,pins =
 				<1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>,
-				<1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1103,7 +1158,11 @@
 	vqmmc-supply = <&vccio_sd_s0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_bus4 &sdmmc_clk &sdmmc_cmd &sdmmc_det>;
-	status = "disabled";
+	status = "okay";
+};
+
+&spdif_tx2 {
+	status = "okay";
 };
 
 &tsadc {
@@ -1165,6 +1224,7 @@
 };
 
 &usbdp_phy0_dp {
+	max-link-rate = <5400>;	/* Maximum link rate supported by PHY (in Mbps) */
 	status = "okay";
 };
 
@@ -1204,6 +1264,10 @@
 };
 
 &vdpu_mmu {
+	status = "okay";
+};
+
+&vepu {
 	status = "okay";
 };
 
