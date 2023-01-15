@@ -7,40 +7,52 @@
 /dts-v1/;
 
 #include "rk3588s-orangepi-5.dtsi"
-#include "rk3588-android.dtsi"
-
-#if 1
+#include "rk3588-linux.dtsi"
 #include "rk3588s-orangepi-5-lcd.dtsi"
-#endif
 
-#if 0
-#include "rk3588s-orangepi-5-camera.dtsi"
-#else
-#include "rk3588s-orangepi-5-camera-dphy.dtsi"
-#endif
+#include "rk3588s-orangepi-5-camera1.dtsi"
+#include "rk3588s-orangepi-5-camera2.dtsi"
+#include "rk3588s-orangepi-5-camera3.dtsi"
 
 / {
 	model = "Orange Pi 5";
 	compatible = "rockchip,rk3588s-orangepi-5", "rockchip,rk3588";
 
-	bt-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "dsp_b";
-		simple-audio-card,bitclock-inversion = <0>;
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,bt";
-		simple-audio-card,cpu {
-				sound-dai = <&i2s0_8ch>;
-		};
-		simple-audio-card,codec {
-				sound-dai = <&bt_sco>;
+	vcc_3v3_sd_s0: vcc-3v3-sd-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_sd_s0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
+		enable-active-low;
+		vin-supply = <&vcc_3v3_s3>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
 		};
 	};
 
-	bt_sco: bt-sco {
-		compatible = "delta,dfbmcs320";
-		#sound-dai-cells = <0>;
+	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v1_nldo_s3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	leds: gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 =<&leds_gpio>;
 		status = "okay";
+
+		led@1 {
+			gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+			label = "status_led";
+			linux,default-trigger = "heartbeat";
+			linux,default-trigger-delay-ms = <0>;
+		};
 	};
 };
 
@@ -75,11 +87,24 @@
 	};
 };
 
-&mipi_dcphy0 {
+&hdmi0 {
+	enable-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
-&mipi_dcphy1 {
+&hdmi0_in_vp0 {
+	status = "okay";
+};
+
+&hdmi0_sound {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
+};
+
+&route_hdmi0{
 	status = "okay";
 };
 
@@ -230,14 +255,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi4m0_cs1 &spi4m0_pins>;
-	assigned-clocks = <&cru CLK_SPI2>;
+	assigned-clocks = <&cru CLK_SPI4>;
 	assigned-clock-rates = <200000000>;
-	num-cs = <1>;
+	num-cs = <2>;
 
-	spi_dev@0 {
+	spi_dev@1 {
 		compatible = "rockchip,spidev";
-		reg = <0>;
-		spi-max-frequency = <12000000>;
+		reg = <1>;
+		spi-max-frequency = <50000000>;
 	};
 };
 
@@ -256,8 +281,8 @@
 &pwm3 {
 	status = "disabled";
 	pinctrl-names = "active";
-	//pinctrl-0 = <&pwm3m2_pins>;
-	pinctrl-0 = <&pwm3m0_pins>;
+	pinctrl-0 = <&pwm3m2_pins>;
+	//pinctrl-0 = <&pwm3m0_pins>;
 };
 
 /*
@@ -283,8 +308,8 @@
 &i2c1 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1m4_xfer>;
-	//pinctrl-0 = <&i2c1m2_xfer>;
+	//pinctrl-0 = <&i2c1m4_xfer>;
+	pinctrl-0 = <&i2c1m2_xfer>;
 };
 
 &pwm0 {
@@ -308,39 +333,75 @@
         status = "okay";
 };
 
-//&sdhci {
-//	status = "disabled";
-//};
-//
-//&sfc {
-//	status = "okay";
-//	max-freq = <50000000>;
-//	#address-cells = <1>;
-//	#size-cells = <0>;
-//	pinctrl-names = "default";
-//	pinctrl-0 = <&fspim0_pins>;
-//
-//	spi_flash: spi-flash@0 {
-//		#address-cells = <1>;
-//		#size-cells = <0>;
-//		compatible = "jedec,spi-nor";
-//		reg = <0x0>;
-//		spi-max-frequency = <50000000>;
-//		spi-tx-bus-width = <1>;
-//		spi-rx-bus-width = <4>;
-//		status = "okay";
-//
-//		partitions {
-//			compatible = "fixed-partitions";
-//			#address-cells = <1>;
-//			#size-cells = <1>;
-//
-//			loader@0 {
-//				label = "loader";
-//				reg = <0x0 0x1000000>;
-//			};
-//		};
-//	};
-//
-//};
-//
+&sfc {
+	status = "okay";
+	max-freq = <100000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspim0_pins>;
+
+	spi_flash: spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <100000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		status = "okay";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			loader@0 {
+				label = "loader";
+				reg = <0x0 0x1000000>;
+			};
+		};
+	};
+};
+
+&mipi_dcphy0 {
+        status = "okay";
+};
+
+&mipi_dcphy1 {
+        status = "okay";
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp0 {
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&rkisp1 {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&sata0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sata_reset>;
+	status = "disabled";
+};
+
+&pcie2x1l2 {
+	status = "okay";
+};

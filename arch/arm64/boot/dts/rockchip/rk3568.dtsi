@@ -59,7 +59,6 @@
 		spi1 = &spi1;
 		spi2 = &spi2;
 		spi3 = &spi3;
-		spi4 = &sfc; // for U-Boot
 	};
 
 	cpus {
@@ -1219,7 +1218,7 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <925000>;
-			opp-microvolt-L2 = <850000>;
+			opp-microvolt-L2 = <900000>;
 		};
 	};
 
@@ -1550,7 +1549,7 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <925000>;
-			opp-microvolt-L2 = <850000>;
+			opp-microvolt-L2 = <900000>;
 		};
 	};
 
@@ -2712,8 +2711,6 @@
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
-                rockchip,always-on;
-		rockchip,hdmi-path;
 		rockchip,playback-only;
 		#sound-dai-cells = <0>;
 		status = "disabled";

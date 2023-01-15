@@ -6,14 +6,14 @@
 
 / {
 	aliases {
-		mmc0 = &sdhci;
-		mmc1 = &sdmmc;
+		mmc0 = &sdmmc;
+		mmc1 = &sdhci;
 		mmc2 = &sdio;
 	};
 
-	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 irqchip.gicv3_pseudo_nmi=0 root=PARTUUID=614e0000-0000 rw rootwait";
-	};
+	//chosen: chosen {
+	//	bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 irqchip.gicv3_pseudo_nmi=0 root=PARTUUID=614e0000-0000 rw rootwait";
+	//};
 
 	cspmu: cspmu@fd10c000 {
 		compatible = "rockchip,cspmu";
@@ -110,4 +110,24 @@
 
 &rng {
 	status = "okay";
+};
+
+&rockchip_suspend {
+
+	rockchip,sleep-mode-config = <
+	       (0
+	       | RKPM_SLP_ARMOFF_DDRPD
+	       | RKPM_SLP_PMU_PMUALIVE_32K
+	       | RKPM_SLP_PMU_DIS_OSC
+	       | RKPM_SLP_32K_EXT
+	       | RKPM_SLP_PMU_DBG
+	       )
+	>;
+};
+
+&vdd_log_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <750000>;
+	};
 };

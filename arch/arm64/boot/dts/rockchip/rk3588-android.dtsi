@@ -58,6 +58,13 @@
 		#size-cells = <2>;
 		ranges;
 
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 (8 * 0x100000)>;
+			linux,cma-default;
+		};
+
 		drm_logo: drm-logo@00000000 {
 			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0 0x0 0x0>;
@@ -103,24 +110,4 @@
 
 &vop {
 	support-multi-area;
-};
-
-&rockchip_suspend {
-
-	rockchip,sleep-mode-config = <
-	       (0
-	       | RKPM_SLP_ARMOFF_DDRPD
-	       | RKPM_SLP_PMU_PMUALIVE_32K
-	       | RKPM_SLP_PMU_DIS_OSC
-	       | RKPM_SLP_32K_EXT
-	       | RKPM_SLP_PMU_DBG
-	       )
-	>;
-};
-
-&vdd_log_s0 {
-	regulator-state-mem {
-		regulator-on-in-suspend;
-		regulator-suspend-microvolt = <750000>;
-	};
 };
