@@ -37,7 +37,7 @@
 			default-state = "off";
 		};
 		work_led: work-led {
-			gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -127,17 +127,49 @@
 		regulator-max-microvolt = <1100000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+
+	wireless_bluetooth: wireless-bluetooth {
+        	compatible = "bluetooth-platdata";
+        	clocks = <&hym8563>;
+        	clock-names = "ext_clock";
+        	uart_rts_gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_LOW>;
+        	pinctrl-names = "default", "rts_gpio";
+        	pinctrl-0 = <&uart9m1_rtsn>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
+        	pinctrl-1 = <&uart9_gpios>;
+        	BT,reset_gpio    = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+        	BT,wake_gpio     = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+        	BT,wake_host_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+        	status = "okay";
+	}; 
+
+	wireless_wlan: wireless-wlan {
+	       compatible = "wlan-platdata";
+ 	       wifi_chip_type = "ap6255";
+	       pinctrl-names = "default";
+	       pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
+	       WIFI,host_wake_irq = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+ 	       WIFI,poweren_gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+	       status = "okay";
+	};
+
+	fddis_dev {
+		compatible = "fddis_dev";
+		fddis_gpio_clk = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+		fddis_gpio_dat = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
+
 
 &combphy0_ps {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sata0_pm_reset>;
+//	pinctrl-0 = <&sata0_pm_reset>;
 	status = "okay";
 };
 
 &combphy1_ps {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sata1_pm_reset>;
+//	pinctrl-0 = <&sata1_pm_reset>;
 	status = "okay";
 };
 
@@ -148,41 +180,37 @@
 &dp0 {
 	pinctrl-0 = <&dp0m2_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &dp0_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp0_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp0_in_vp2 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp1 {
 	pinctrl-0 = <&dp1m2_pins &dp1_hdmi_ctl>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &dp1_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp1_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp1_in_vp2 {
-	status = "okay";
-};
-
-&dp1_sound {
-	status = "okay";
+	status = "disabled";
 };
 
 &gmac0 {
@@ -206,7 +234,7 @@
 	/* rx_delay = <0x4f>; */
 
 	phy-handle = <&rgmii_phy0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &gmac1 {
@@ -214,7 +242,7 @@
 	phy-mode = "rgmii-rxid";
 	clock_in_out = "output";
 
-	snps,reset-gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
@@ -243,11 +271,11 @@
 };
 
 &hdmi0_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi0_in_vp2 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi0_sound {
@@ -255,24 +283,24 @@
 };
 
 &hdmi1 {
-	enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+//	enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+	status = "disabled";
 };
 
 &hdmi1_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi1_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi1_in_vp2 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi1_sound {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdptxphy_hdmi0 {
@@ -280,7 +308,7 @@
 };
 
 &hdptxphy_hdmi1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c0 {
@@ -379,12 +407,13 @@
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
-
+                #clock-cells = <0>;
+		clock-output-names = "hym8563";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_int>;
 
 		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
 	};
 };
@@ -402,7 +431,7 @@
 };
 
 &i2s6_8ch {
-	status = "okay";
+	status = "disabled";
 };
 
 &mdio0 {
@@ -419,119 +448,20 @@
 	};
 };
 
-&pcie30phy {
+
+&pcie2x1l0 {
+	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie30>;
+        rockchip,skip-scan-in-resume;
 	status = "okay";
+};
+
+&pcie30phy {
+	status = "disabled";
 };
 
 &pcie3x4 {
-	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_pcie30>;
-	status = "okay";
-};
-
-&pwm3 {
-	compatible = "rockchip,remotectl-pwm";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm3m0_pins>;
-	remote_pwm_id = <3>;
-	handle_cpu_id = <1>;
-	remote_support_psci = <0>;
-	status = "okay";
-
-	ir_key1 {
-		rockchip,usercode = <0x4040>;
-		rockchip,key_table =
-			<0xf2	KEY_REPLY>,
-			<0xba	KEY_BACK>,
-			<0xf4	KEY_UP>,
-			<0xf1	KEY_DOWN>,
-			<0xef	KEY_LEFT>,
-			<0xee	KEY_RIGHT>,
-			<0xbd	KEY_HOME>,
-			<0xea	KEY_VOLUMEUP>,
-			<0xe3	KEY_VOLUMEDOWN>,
-			<0xe2	KEY_SEARCH>,
-			<0xb2	KEY_POWER>,
-			<0xbc	KEY_MUTE>,
-			<0xec	KEY_MENU>,
-			<0xbf	0x190>,
-			<0xe0	0x191>,
-			<0xe1	0x192>,
-			<0xe9	183>,
-			<0xe6	248>,
-			<0xe8	185>,
-			<0xe7	186>,
-			<0xf0	388>,
-			<0xbe	0x175>;
-	};
-
-	ir_key2 {
-		rockchip,usercode = <0xff00>;
-		rockchip,key_table =
-			<0xf9	KEY_HOME>,
-			<0xbf	KEY_BACK>,
-			<0xfb	KEY_MENU>,
-			<0xaa	KEY_REPLY>,
-			<0xb9	KEY_UP>,
-			<0xe9	KEY_DOWN>,
-			<0xb8	KEY_LEFT>,
-			<0xea	KEY_RIGHT>,
-			<0xeb	KEY_VOLUMEDOWN>,
-			<0xef	KEY_VOLUMEUP>,
-			<0xf7	KEY_MUTE>,
-			<0xe7	KEY_POWER>,
-			<0xfc	KEY_POWER>,
-			<0xa9	KEY_VOLUMEDOWN>,
-			<0xa8	KEY_PLAYPAUSE>,
-			<0xe0	KEY_VOLUMEDOWN>,
-			<0xa5	KEY_VOLUMEDOWN>,
-			<0xab	183>,
-			<0xb7	388>,
-			<0xe8	388>,
-			<0xf8	184>,
-			<0xaf	185>,
-			<0xed	KEY_VOLUMEDOWN>,
-			<0xee	186>,
-			<0xb3	KEY_VOLUMEDOWN>,
-			<0xf1	KEY_VOLUMEDOWN>,
-			<0xf2	KEY_VOLUMEDOWN>,
-			<0xf3	KEY_SEARCH>,
-			<0xb4	KEY_VOLUMEDOWN>,
-			<0xa4	KEY_SETUP>,
-			<0xbe	KEY_SEARCH>;
-	};
-
-	ir_key3 {
-		rockchip,usercode = <0x1dcc>;
-		rockchip,key_table =
-			<0xee	KEY_REPLY>,
-			<0xf0	KEY_BACK>,
-			<0xf8	KEY_UP>,
-			<0xbb	KEY_DOWN>,
-			<0xef	KEY_LEFT>,
-			<0xed	KEY_RIGHT>,
-			<0xfc	KEY_HOME>,
-			<0xf1	KEY_VOLUMEUP>,
-			<0xfd	KEY_VOLUMEDOWN>,
-			<0xb7	KEY_SEARCH>,
-			<0xff	KEY_POWER>,
-			<0xf3	KEY_MUTE>,
-			<0xbf	KEY_MENU>,
-			<0xf9	0x191>,
-			<0xf5	0x192>,
-			<0xb3	388>,
-			<0xbe	KEY_1>,
-			<0xba	KEY_2>,
-			<0xb2	KEY_3>,
-			<0xbd	KEY_4>,
-			<0xf9	KEY_5>,
-			<0xb1	KEY_6>,
-			<0xfc	KEY_7>,
-			<0xf8	KEY_8>,
-			<0xb0	KEY_9>,
-			<0xb6	KEY_0>,
-			<0xb5	KEY_BACKSPACE>;
-	};
+	status = "disabled";
 };
 
 &rk806single {
@@ -572,7 +502,7 @@
 };
 
 &route_dp0 {
-	status = "okay";
+	status = "disabled";
 	force-output;
 	connect = <&vp2_out_dp0>;
 
@@ -595,7 +525,7 @@
 };
 
 &route_dp1 {
-	status = "okay";
+	status = "disabled";
 	force-output;
 	connect = <&vp2_out_dp1>;
 
@@ -620,7 +550,7 @@
 &route_hdmi0 {
 	status = "okay";
 	force-output;
-	connect = <&vp2_out_hdmi0>;
+	connect = <&vp0_out_hdmi0>;
 
 	force_timing {
 		clock-frequency = <65000000>;
@@ -641,7 +571,7 @@
 };
 
 &route_hdmi1 {
-	status = "okay";
+	status = "disabled";
 	force-output;
 	connect = <&vp2_out_hdmi1>;
 
@@ -664,11 +594,17 @@
 };
 
 &sata0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &sata1 {
+	status = "disabled";
+};
+
+&uart9 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart9m1_xfer &uart9m1_ctsn>;
 };
 
 &sdhci {
@@ -682,11 +618,41 @@
 	status = "okay";
 };
 
-&spdif_tx5 {
-	status = "okay";
-};
-
 &pinctrl {
+	wireless-bluetooth {
+		uart9_gpios: uart9-gpios {
+			rockchip,pins = <4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		 };
+		bt_reset_gpio: bt-reset-gpio {
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_wake_gpio: bt-wake-gpio {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+//		bt_gpio: bt-gpio {
+//			rockchip,pins =
+//				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+//				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>,
+//				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>;
+//		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		
+		wifi_poweren_gpio: wifi-poweren-gpio {
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};		
+	};
+	
 	dp {
 		dp1_hdmi_ctl: dp-hdmi-ctl {
 			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>,
@@ -696,7 +662,7 @@
 
 	rtc {
 		rtc_int: rtc-int {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

@@ -30,8 +30,11 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3588-uart7-m1-ctsn-rtsn.dtbo \
 	rk3588-uart7-m1.dtbo \
 	rk3588-uart7-m2.dtbo \
+	rock-4-okdo-5mp-camera.dtbo \
 	rock-4-rpi-camera-v1p3.dtbo \
 	rock-4-rpi-camera-v2.dtbo \
+	rock-4ab-raspi-7inch-touchscreen.dtbo \
+	rock-4c-plus-raspi-7inch-touchscreen.dtbo \
 	rock-4c-plus-radxa-display-8hd.dtbo \
 	rock-4c-plus-radxa-display-10hd.dtbo \
 	rock-4c-plus-radxa-display-10fhd.dtbo \
@@ -77,7 +80,6 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3588-ssd-sata.dtbo \
 	rk3588-dmc.dtbo
 	rk3588-wifi-ap6275p.dtbo \
-
 
 dtbotxt-$(CONFIG_ARCH_ROCKCHIP) += \
 	README.rockchip-overlays
